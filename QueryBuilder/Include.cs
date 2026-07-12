@@ -7,17 +7,5 @@ namespace SqlKata
         public string ForeignKey { get; set; }
         public string LocalKey { get; set; }
         public bool IsMany { get; set; }
-
-        public Include Clone()
-        {
-            return new Include
-            {
-                Name = Name,
-                Query = Query.Clone(),
-                ForeignKey = ForeignKey,
-                LocalKey = LocalKey,
-                IsMany = IsMany,
-            };
-        }
     }
 }

@@ -67,11 +67,22 @@ namespace SqlKata
         /// <returns></returns>
         public Query Having(object constraints)
         {
+            if (constraints == null)
+                throw new ArgumentNullException("constraints");
+
+            var dict = constraints as IDictionary<string, object>;
+            if (dict != null)
+                return Having(dict);
+
             var dictionary = new Dictionary<string, object>();
 
-            foreach (var item in constraints.GetType().GetRuntimeProperties())
+            foreach (PropertyInfo property in constraints.GetType()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                dictionary.Add(item.Name, item.GetValue(constraints));
+                if (!property.CanRead)
+                    continue;
+
+                dictionary.Add(property.Name, property.GetValue(constraints, null));
             }
 
             return Having(dictionary);

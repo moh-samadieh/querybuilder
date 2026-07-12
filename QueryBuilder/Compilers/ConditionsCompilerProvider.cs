@@ -35,17 +35,20 @@ namespace SqlKata.Compilers
         private MethodInfo FindMethodInfo(Type clauseType, string methodName)
         {
             MethodInfo methodInfo = compilerType
-                .GetRuntimeMethods()
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic |
+                            BindingFlags.Instance | BindingFlags.Static)
                 .FirstOrDefault(x => x.Name == methodName);
 
             if (methodInfo == null)
             {
-                throw new Exception($"Failed to locate a compiler for '{methodName}'.");
+                throw new Exception(
+                    string.Format("Failed to locate a compiler for '{0}'.", methodName));
             }
 
-            if (clauseType.IsConstructedGenericType && methodInfo.GetGenericArguments().Any())
+            if (clauseType.IsGenericType && methodInfo.IsGenericMethodDefinition)
             {
-                methodInfo = methodInfo.MakeGenericMethod(clauseType.GenericTypeArguments);
+                methodInfo = methodInfo.MakeGenericMethod(
+                    clauseType.GetGenericArguments());
             }
 
             return methodInfo;

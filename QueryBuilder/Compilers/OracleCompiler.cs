@@ -69,7 +69,7 @@ namespace SqlKata.Compilers
             return $"{safeOrder}OFFSET {parameterPlaceholder} ROWS FETCH NEXT {parameterPlaceholder} ROWS ONLY";
         }
 
-        internal void ApplyLegacyLimit(SqlResult ctx)
+        public  void ApplyLegacyLimit(SqlResult ctx)
         {
             var limit = ctx.Query.GetLimit(EngineCode);
             var offset = ctx.Query.GetOffset(EngineCode);

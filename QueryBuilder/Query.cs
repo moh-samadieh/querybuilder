@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 namespace SqlKata
 {
@@ -18,6 +20,11 @@ namespace SqlKata
 
         public Query() : base()
         {
+            var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+            culture.DateTimeFormat.Calendar = new GregorianCalendar();
+
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
         }
 
         public Query(string table, string comment = null) : base()
@@ -55,8 +62,8 @@ namespace SqlKata
             clone.QueryAlias = QueryAlias;
             clone.IsDistinct = IsDistinct;
             clone.Method = Method;
-            clone.Includes = Includes.Select(i => i.Clone()).ToList();
-            clone.Variables = new Dictionary<string, object>(Variables);
+            clone.Includes = Includes;
+            clone.Variables = Variables;
             return clone;
         }
 
@@ -405,29 +412,46 @@ namespace SqlKata
         private IEnumerable<KeyValuePair<string, object>> BuildKeyValuePairsFromObject(object data, bool considerKeys = false)
         {
             var dictionary = new Dictionary<string, object>();
-            var props = CacheDictionaryProperties.GetOrAdd(data.GetType(), type => type.GetRuntimeProperties().ToArray());
 
-            foreach (var property in props)
+            var props = CacheDictionaryProperties.GetOrAdd(
+                data.GetType(),
+                t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
+
+            foreach (PropertyInfo property in props)
             {
-                if (property.GetCustomAttribute(typeof(IgnoreAttribute)) != null)
+                object[] attrs = property.GetCustomAttributes(true);
+
+                bool ignore = false;
+                ColumnAttribute column = null;
+                bool isKey = false;
+
+                foreach (object attr in attrs)
                 {
-                    continue;
+                    if (attr is IgnoreAttribute)
+                    {
+                        ignore = true;
+                        break;
+                    }
+
+                    if (attr is ColumnAttribute)
+                        column = (ColumnAttribute)attr;
+
+                    if (attr is KeyAttribute)
+                        isKey = true;
                 }
 
-                var value = property.GetValue(data);
+                if (ignore)
+                    continue;
 
-                var colAttr = property.GetCustomAttribute(typeof(ColumnAttribute)) as ColumnAttribute;
+                string name = column != null ? column.Name : property.Name;
 
-                var name = colAttr?.Name ?? property.Name;
+                object value = property.GetValue(data, null);
 
                 dictionary.Add(name, value);
 
-                if (considerKeys && colAttr != null)
+                if (considerKeys && isKey)
                 {
-                    if ((colAttr as KeyAttribute) != null)
-                    {
-                        this.Where(name, value);
-                    }
+                    this.Where(name, value);
                 }
             }
 
